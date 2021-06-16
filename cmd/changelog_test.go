@@ -11,8 +11,8 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-func TestBuildSections(t *testing.T) {
-	content, err := ioutil.ReadFile(filepath.Join("testdata", "changes", "CHANGES.rst"))
+func testWriteRstChangelog(t *testing.T, changesDir string) {
+	content, err := ioutil.ReadFile(filepath.Join("testdata", changesDir, "CHANGES.rst"))
 	if err != nil {
 		t.Fatalf("Unexpected error, %s", err)
 	}
@@ -24,7 +24,7 @@ func TestBuildSections(t *testing.T) {
 		t.Fatalf("Unexpected error, %s", err)
 	}
 
-	changelog, err := BuildChangelog("example/project", filepath.Join("testdata", "changes"), releaseDate)
+	changelog, err := BuildChangelog("example/project", filepath.Join("testdata", changesDir), releaseDate)
 	if err != nil {
 		t.Fatalf("Unexpected error, %s", err)
 	}
@@ -42,6 +42,14 @@ func TestBuildSections(t *testing.T) {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(expected, actual, false)
 		t.Fatalf(dmp.DiffPrettyText(diffs))
+	}
+}
+
+func TestChangelog(t *testing.T) {
+	tCases := []string{"changes", "changes_breaking", "changes_fixes"}
+
+	for _, tcase := range tCases {
+		testWriteRstChangelog(t, tcase)
 	}
 
 }

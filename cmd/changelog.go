@@ -120,7 +120,7 @@ func findChanges(changesDir string) (map[string][]Change, error) {
 			continue
 		}
 
-		ctype := parts[1]
+		ctype := strings.Replace(parts[1], "-", " ", -1)
 		data, err := ioutil.ReadFile(filepath.Join(changesDir, filename))
 		if err != nil {
 			return nil, err

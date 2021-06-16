@@ -19,12 +19,12 @@ func init() {
 	viper.BindEnv("github_repository")
 
 	rootCmd.AddCommand(changelogCmd)
-	rootCmd.AddCommand(versionCmd)
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "wneud",
-	Short: "wneud is a tool for automating software releases and going project managment",
+	Use:     "wneud",
+	Short:   "wneud is a tool for automating software releases and project managment",
+	Version: VERSION,
 }
 
 var changelogCmd = &cobra.Command{
@@ -43,14 +43,6 @@ var changelogCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Unable to write changelog, %s", err)
 		}
-	},
-}
-
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print version number and exit",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v" + VERSION)
 	},
 }
 
