@@ -7,57 +7,52 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// var isDebug = false
+const VERSION = "0.1.0"
 
 func init() {
 
-	rootCmd.PersistentFlags().CountP("verbose", "v", "Increase the verbosity of the output.")
+	viper.SetDefault("github_repository", "example/repo")
+
+	viper.BindEnv("github_repository")
+
 	rootCmd.AddCommand(changelogCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 var rootCmd = &cobra.Command{
-	Use:              "wneud",
-	PersistentPreRun: preRunHook,
-	Short:            "wneud is a tool for automating software releases and going project managment.",
-}
-
-func preRunHook(cmd *cobra.Command, args []string) {
-	log.SetFlags(0)
-
-	// if getCountFlag(cmd, "verbose", 0) > 0 {
-	// isDebug = true
-	// }
+	Use:   "wneud",
+	Short: "wneud is a tool for automating software releases and going project managment",
 }
 
 var changelogCmd = &cobra.Command{
 	Use:   "changelog",
-	Short: "Write the changelog entry for the next release",
+	Short: "Write a draft changelog entry for the next release",
 	Run: func(cmd *cobra.Command, args []string) {
-		sections, err := buildSections("changes")
+
+		repository := viper.GetString("github_repository")
+		fmt.Printf("It is: '%s'", repository)
+		changelog, err := BuildChangelog(repository, "changes", time.Now())
 		if err != nil {
 			log.Fatalf("Unable to find changelog entries, %s\n", err)
 		}
 
-		changelog := ChangeLog{
-			Version:     "0.6.2",
-			ReleaseDate: time.Now(),
-			Sections:    sections,
+		err = changelog.asRst(os.Stdout)
+		if err != nil {
+			log.Fatalf("Unable to write changelog, %s", err)
 		}
-
-		changelog.asRst(os.Stdout)
 	},
 }
 
-// func getCountFlag(cmd *cobra.Command, flag string, defaultValue int) int {
-// 	value, err := cmd.Flags().GetCount(flag)
-// 	if err != nil {
-// 		return defaultValue
-// 	}
-
-// 	return value
-// }
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print version number and exit",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("v" + VERSION)
+	},
+}
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

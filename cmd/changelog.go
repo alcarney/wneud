@@ -24,6 +24,7 @@ type ChangeSection struct {
 type ChangeLog struct {
 	Version     string
 	ReleaseDate time.Time
+	Repository  string
 	Sections    []ChangeSection
 }
 
@@ -36,14 +37,32 @@ func (changelog *ChangeLog) asRst(w io.Writer) error {
 	data := struct {
 		Version     string
 		ReleaseDate string
+		Repository  string
 		Sections    []ChangeSection
 	}{
 		changelog.Version,
 		changelog.ReleaseDate.Format("02-01-2006"),
+		changelog.Repository,
 		changelog.Sections,
 	}
 
 	return tmpl.Execute(w, data)
+}
+
+func BuildChangelog(repository string, changesDir string, releaseDate time.Time) (ChangeLog, error) {
+	sections, err := buildSections(changesDir)
+	if err != nil {
+		return ChangeLog{}, nil
+	}
+
+	changelog := ChangeLog{
+		Version:     "Unreleased",
+		ReleaseDate: releaseDate,
+		Repository:  repository,
+		Sections:    sections,
+	}
+
+	return changelog, nil
 }
 
 func buildSections(changesDir string) ([]ChangeSection, error) {
@@ -53,18 +72,20 @@ func buildSections(changesDir string) ([]ChangeSection, error) {
 	}
 
 	types := make([]string, len(changes))
+	i := 0
 	for t := range changes {
-		types = append(types, t)
+		types[i] = t
+		i += 1
 	}
 	sort.Strings(types)
 
-	sections := make([]ChangeSection, len(changes))
-	for _, ctype := range types {
+	sections := make([]ChangeSection, len(types))
+	for i, ctype := range types {
 		section := ChangeSection{
 			Type:    strings.Title(ctype),
 			Changes: changes[ctype],
 		}
-		sections = append(sections, section)
+		sections[i] = section
 	}
 
 	return sections, nil
@@ -100,12 +121,13 @@ func findChanges(changesDir string) (map[string][]Change, error) {
 		}
 
 		ctype := parts[1]
-		bytes, err := ioutil.ReadFile(filepath.Join(changesDir, filename))
+		data, err := ioutil.ReadFile(filepath.Join(changesDir, filename))
 		if err != nil {
 			return nil, err
 		}
 
-		change := Change{IssueNumber: issue, Content: string(bytes)}
+		content := strings.Replace(string(data), "\n", "\n  ", -1)
+		change := Change{IssueNumber: issue, Content: content}
 		changes[ctype] = append(changes[ctype], change)
 	}
 
@@ -119,11 +141,9 @@ const changelogRstTemplate = `
 {{ .Type }}
 {{ header "^" (len .Type) }}
 {{ range .Changes }}
-- {{ .Content }} (` + "`{{ .IssueNumber }} <https://github.com/example/project/issues/{{ .IssueNumber }}>`_" + `)
+- {{ .Content }} (` + "`{{ .IssueNumber }} <https://github.com/{{ $.Repository }}/issues/{{ .IssueNumber }}>`_" + `)
 {{- end }}
-
-{{ end }}
-`
+{{ end }}`
 
 func getRstTemplate() (*template.Template, error) {
 	return template.New("rstChangelog").Funcs(template.FuncMap{
