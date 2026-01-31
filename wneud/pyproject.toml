@@ -1,0 +1,30 @@
+[project]
+name = "io.github.swyddfa.Wneud"
+version = "0.1.0"
+authors = [{name = "Alex Carney", email = "alcarneyme@gmail.com"}]
+maintainers = [{name = "Alex Carney", email = "alcarneyme@gmail.com"}]
+description = "Automations and workflows for your Desktop"
+license = "GPL-3.0-or-later"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Utilities",
+    "Programming Language :: Python",
+    "Operating System :: POSIX :: Linux",
+]
+readme = "README.md"
+dependencies = []
+
+[project.scripts]
+wneud = "wneud.app:main"
+
+
+[tool.setuptools]
+packages = ["wneud", "wneud.qml"]
+package-dir = {wneud = "src"}
+include-package-data = true
+
+[tool.setuptools.data-files]
+"share/applications" = ["io.github.swyddfa.Wneud.desktop"]
+"share/icons/hicolor/scalable/apps" = ["io.github.swyddfa.Wneud.svg"]
+"share/metainfo" = ["io.github.swyddfa.Wneud.metainfo.xml"]

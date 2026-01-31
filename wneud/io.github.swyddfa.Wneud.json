@@ -1,0 +1,34 @@
+{
+    "id": "io.github.swyddfa.Wneud",
+    "runtime": "org.kde.Platform",
+    "runtime-version": "6.10",
+    "sdk": "org.kde.Sdk",
+    "base": "io.qt.PySide.BaseApp",
+    "base-version": "6.10",
+    "command": "wneud",
+    "finish-args": [
+        "--share=ipc",
+        "--socket=fallback-x11",
+        "--socket=wayland",
+        "--device=dri",
+        "--socket=pulseaudio"
+    ],
+    "modules": [
+        {
+            "name": "wneud",
+            "buildsystem": "simple",
+            "build-commands": [
+                "pip3 install --no-build-isolation --no-deps --prefix=/app *.tar.gz"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "dist"
+                }
+            ]
+        }
+    ],
+    "cleanup-commands": [
+        "/app/cleanup-BaseApp.sh"
+    ]
+}

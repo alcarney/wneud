@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import os
+import pathlib
+import signal
+import sys
+import typing
+
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+def main(args: Sequence[str] | None = None):
+    app = QGuiApplication(args or sys.argv)
+    engine = QQmlApplicationEngine()
+
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    if not os.environ.get("QT_QUICK_CONTROLS_STYLE"):
+        # requires: kf6-qqc2-desktop-style on fedora
+        os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
+
+    if not (platform := os.environ.get("QT_QPA_PLATFORM")):
+        os.environ["QT_QPA_PLATFORM"] = "wayland"
+    else:
+        print(f"Using plaform: {platform}")
+
+    src = pathlib.Path(__file__).parent.resolve()
+    main_qml = src / "qml/main.qml"
+    print(f"QML: {main_qml}")
+    engine.load(QUrl(main_qml.as_uri()))
+
+    if len(engine.rootObjects()) == 0:
+        sys.exit(1)
+
+    app.exec()

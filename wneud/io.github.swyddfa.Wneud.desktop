@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Wneud
+GenericName=Workflow
+Comment=Automations and workflows for the Desktop
+Version=0.1.0
+Exec=wneud
+Icon=io.github.swyddfa.Wneud
+Type=Application
+Terminal=false
+Categories=Office;
+X-KDE-FormFactor=desktop;tablet;handset;
