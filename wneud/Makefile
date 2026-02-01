@@ -21,3 +21,13 @@ $(FLATPAK_BUILD_DIR)/files/.ref: $(FLATPAK_MANIFEST) dist/.ref
 dist/.ref: $(SRC_FILES) pyproject.toml
 	uv build
 	touch $@
+
+# e.g. ARGS=varlink make flatpak-pip-generator
+flatpak-pip-generator: .venv/bin/flatpak-pip-generator.py
+	uv run python $< $(ARGS)
+
+.venv/bin/flatpak-pip-generator.py: .venv/pyvenv.cfg
+	wget https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/pip/flatpak-pip-generator.py --directory-prefix .venv/bin
+
+.venv/pyvenv.cfg: pyproject.toml
+	uv sync

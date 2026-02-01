@@ -8,10 +8,31 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "pyside6" },
+    { name = "varlink" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "requirements-parser" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pyside6" }]
+requires-dist = [
+    { name = "pyside6" },
+    { name = "varlink" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "requirements-parser" }]
+
+[[package]]
+name = "packaging"
+version = "26.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+]
 
 [[package]]
 name = "pyside6"
@@ -62,6 +83,18 @@ wheels = [
 ]
 
 [[package]]
+name = "requirements-parser"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/95/96/fb6dbfebb524d5601d359a47c78fe7ba1eef90fc4096404aa60c9a906fbb/requirements_parser-0.13.0.tar.gz", hash = "sha256:0843119ca2cb2331de4eb31b10d70462e39ace698fd660a915c247d2301a4418", size = 22630, upload-time = "2025-05-21T13:42:05.464Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/60/50fbb6ffb35f733654466f1a90d162bcbea358adc3b0871339254fbc37b2/requirements_parser-0.13.0-py3-none-any.whl", hash = "sha256:2b3173faecf19ec5501971b7222d38f04cb45bb9d87d0ad629ca71e2e62ded14", size = 14782, upload-time = "2025-05-21T13:42:04.007Z" },
+]
+
+[[package]]
 name = "shiboken6"
 version = "6.10.1"
 source = { registry = "https://pypi.org/simple" }
@@ -71,4 +104,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/16/b8/939c24ebd662b0aa5c945443d0973145b3fb7079f0196274ef7bb4b98f73/shiboken6-6.10.1-cp39-abi3-manylinux_2_39_aarch64.whl", hash = "sha256:c095b00f4d6bf578c0b2464bb4e264b351a99345374478570f69e2e679a2a1d0", size = 268691, upload-time = "2025-11-20T10:08:55.639Z" },
     { url = "https://files.pythonhosted.org/packages/cf/a6/8c65ee0fa5e172ebcca03246b1bc3bd96cdaf1d60537316648536b7072a5/shiboken6-6.10.1-cp39-abi3-win_amd64.whl", hash = "sha256:c1601d3cda1fa32779b141663873741b54e797cb0328458d7466281f117b0a4e", size = 1234704, upload-time = "2025-11-20T10:08:57.417Z" },
     { url = "https://files.pythonhosted.org/packages/7b/6a/c0fea2f2ac7d9d96618c98156500683a4d1f93fea0e8c5a2bc39913d7ef1/shiboken6-6.10.1-cp39-abi3-win_arm64.whl", hash = "sha256:5cf800917008587b551005a45add2d485cca66f5f7ecd5b320e9954e40448cc9", size = 1795567, upload-time = "2025-11-20T10:08:59.184Z" },
+]
+
+[[package]]
+name = "varlink"
+version = "31.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/90/172069117da79f1b62a29417dac7c7e544dda82bfb28af18167d1fb3aaaf/varlink-31.0.0.tar.gz", hash = "sha256:4070cb2c250f459bcea88c99bb08203d65e4f41241a4f68942969f25123b0a31", size = 44613, upload-time = "2021-12-06T12:58:09.987Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/ce/7dade08126c0599865d1f955b21dad2b11df604b7678a37689559ac56d20/varlink-31.0.0-py2.py3-none-any.whl", hash = "sha256:0d0629e5ca7e629f79ed84dc5a4f29e04f3cc83b24641528e91a41fa158e58e9", size = 39780, upload-time = "2021-12-06T12:58:08.898Z" },
 ]

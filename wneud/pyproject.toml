@@ -14,11 +14,17 @@ classifiers = [
 ]
 readme = "README.md"
 dependencies = [
-    "PySide6"
+    "PySide6",
+    "varlink",
 ]
 
 [project.scripts]
 wneud = "wneud.app:main"
+
+[dependency-groups]
+dev = [
+  "requirements-parser"
+]
 
 [tool.pyright]
 include = ["src"]

@@ -14,6 +14,7 @@
         "--socket=pulseaudio"
     ],
     "modules": [
+        "python3-varlink.json",
         {
             "name": "wneud",
             "buildsystem": "simple",

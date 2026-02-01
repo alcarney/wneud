@@ -1,0 +1,14 @@
+{
+    "name": "python3-varlink",
+    "buildsystem": "simple",
+    "build-commands": [
+        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"varlink\" --no-build-isolation"
+    ],
+    "sources": [
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/e6/ce/7dade08126c0599865d1f955b21dad2b11df604b7678a37689559ac56d20/varlink-31.0.0-py2.py3-none-any.whl",
+            "sha256": "0d0629e5ca7e629f79ed84dc5a4f29e04f3cc83b24641528e91a41fa158e58e9"
+        }
+    ]
+}
