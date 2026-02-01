@@ -13,58 +13,79 @@ Kirigami.ApplicationWindow {
     width: minimumWidth
     height: minimumHeight
 
-    pageStack.initialPage: initPage
+    // TODO: Move to backed.
+    ListModel {
+        id: sdUnitsModel
+        ListElement {
+            name: "Emacs"
+            description: "Emacs server daemon"
+            unitType: "service"
+        }
+        ListElement {
+            name: "Something else"
+            description: "Some other server daemon"
+            unitType: "service"
+        }
+    }
 
     Component {
-        id: initPage
+        id: sdUnitsDelegate
+        Kirigami.AbstractCard {
+            contentItem: Item {
+                implicitWidth: delegateLayout.implicitWidth
+                implicitHeight: delegateLayout.implicitHeight
 
-        Kirigami.Page {
-            title: qsTr("Home")
+                GridLayout {
+                    id: delegateLayout
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        top: parent.top
+                    }
+                    rowSpacing: Kirigami.Units.largeSpacing
+                    columnSpacing: Kirigami.Units.largeSpacing
+                    columns: root.wideScreen ? 4 : 2
 
-            ColumnLayout {
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: parent.right
-                }
-
-                Controls.TextArea {
-                    id: sourceArea
-
-                    placeholderText: qsTr("Write something here")
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: Kirigami.Units.gridUnit * 5
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Controls.Button {
-                        text: qsTr("Format")
+                    Kirigami.Heading {
+                        level: 2
+                        text: unitType
                     }
 
-                    Controls.Button {
-                        text: qsTr("Clear")
+                    ColumnLayout {
+                        Kirigami.Heading {
+                            Layout.fillWidth: true
+                            level: 1
+                            text: name
+                        }
 
-                        onClicked: {
-                            sourceArea.text = ""
-                            formattedText.text = ""
+                        Kirigami.Separator {
+                            Layout.fillWidth: true
+                            visible: description.length > 0
+                        }
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: description
+                            visible: description.length > 0
                         }
                     }
-                }
 
-                Text {
-                    id: formattedText
-
-                    textFormat: Text.RichText
-                    wrapMode: Text.WordWrap
-                    text: sourceArea.text
-
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: Kirigami.Units.gridUnit * 5
+                    Controls.Button {
+                        Layout.alignment: Qt.AlignRight
+                        Layout.columnSpan: 2
+                        text: "A button"
+                    }
                 }
             }
         }
     }
+
+    pageStack.initialPage: Kirigami.ScrollablePage {
+        Kirigami.CardsListView {
+            id: sdUnitsView
+            model: sdUnitsModel
+            delegate: sdUnitsDelegate
+        }
+    }
+
 }
