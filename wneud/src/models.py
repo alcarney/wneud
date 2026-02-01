@@ -11,6 +11,8 @@ from PySide6.QtQml import QmlElement
 if typing.TYPE_CHECKING:
     from PySide6.QtCore import QByteArray, QObject, QPersistentModelIndex
 
+    from .sd_types import VarlinkUnit
+
     ModelIndex = QModelIndex | QPersistentModelIndex
 
 ItemDataRole = Qt.ItemDataRole
@@ -21,14 +23,21 @@ QML_IMPORT_MAJOR_VERSION = 1
 
 @QmlElement
 class SDUnitListModel(QAbstractListModel):
-    """A list model for listing systemd units."""
+    """A list model for systemd units."""
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.units: list[SDUnit] = []
+
+        self.system_units: list[SDUnit] = []
+        self.user_units: list[SDUnit] = []
+
         self.reload_units()
-        self.logger.debug("Created model instance containing %s units", len(self.units))
+
+    @property
+    def units(self):
+        # TODO: Filters for selecting other unit types?
+        return self.user_units
 
     @typing.override
     def data(self, index: ModelIndex, /, role: int):
@@ -43,7 +52,7 @@ class SDUnitListModel(QAbstractListModel):
             return None
 
         item = self.units[row]
-        self.logger.debug("selected row: %s", item)
+        # self.logger.debug("selected row: %s", item)
 
         if role in {ItemDataRole.DisplayRole, ItemDataRole.UserRole + 1}:
             return item.name
@@ -57,26 +66,15 @@ class SDUnitListModel(QAbstractListModel):
         self.logger.debug(".data() returning none")
         return None
 
-    def headerData(self, section, orientation, role=ItemDataRole.DisplayRole):
-        """Returns the appropriate header string depending on the orientation of
-        the header and the section. If anything other than the display role is
-        requested, we return an invalid variant."""
-        self.logger.debug("headerData called")
-        if role != ItemDataRole.DisplayRole:
-            return None
-        if orientation == Qt.Horizontal:
-            return f"Column {section}"
-        return f"Row {section}"
-
     @typing.override
     def rowCount(self, parent: ModelIndex = QModelIndex()):
-        self.logger.debug("rowCount called")
+        # self.logger.debug("rowCount called")
         return len(self.units)
 
     @typing.override
     def roleNames(self):
         # TODO: do some dataclass introspection!
-        self.logger.debug("roleNames called")
+        # self.logger.debug("roleNames called")
         roles: dict[int, QByteArray] = {
             **super().roleNames(),
             ItemDataRole.UserRole + 1: b"name",
@@ -87,22 +85,26 @@ class SDUnitListModel(QAbstractListModel):
 
     def reload_units(self):
         """Reload list of units."""
-        self.units = []
+        self.user_units.clear()
+        self.system_units.clear()
 
         with varlink.Client("unix:/run/user/1000/systemd/io.systemd.Manager") as client:
-            # for interface in client.get_interfaces():
-            #     self.logger.debug("found: %s", interface)
             with client.open("io.systemd.Unit") as connection:
-                for unit in connection.List(_more=True):
-                    self.logger.debug("found: %s", unit)
+                for item in connection.List(_more=True):
+                    unit = SDUnit.from_varlink(item["context"])
 
-                    context = unit["context"]
+                    # It might seem strange to talk about 'system' units since we're connected
+                    # to the user systemd instance however, there are many system services
+                    # running in the user instance that we probably should leave well alone.
+                    #
+                    # So for our purposes a 'user' unit is one that lives in .config/systemd/user
+                    # as it's most likely been set up by us or the user independently.
+                    source = unit.sourcePath or unit.fragmentPath
+                    if source is not None and ".config/systemd" in source:
+                        self.user_units.append(unit)
 
-                    name = context["ID"]
-                    description = context.get("Description", "")
-                    unitType = context["Type"]
-
-                    self.units.append(SDUnit(name, description, unitType))
+                    else:
+                        self.system_units.append(unit)
 
 
 @dataclasses.dataclass
@@ -110,5 +112,20 @@ class SDUnit:
     """Represents a systemd unit"""
 
     name: str
-    description: str
+    description: str | None
     unitType: str
+
+    sourcePath: str | None
+    fragmentPath: str | None
+
+    @classmethod
+    def from_varlink(cls, item: VarlinkUnit):
+        """Create an instance from the varlink representation"""
+
+        return cls(
+            name=item["ID"],
+            description=item.get("Description"),
+            unitType=item["Type"],
+            sourcePath=item.get("SourcePath"),
+            fragmentPath=item.get("FragmentPath"),
+        )
