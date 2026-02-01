@@ -4,6 +4,7 @@ import dataclasses
 import logging
 import typing
 
+import varlink
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PySide6.QtQml import QmlElement
 
@@ -25,10 +26,8 @@ class SDUnitListModel(QAbstractListModel):
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.units: list[SDUnit] = [
-            SDUnit("Emacs", "Emacs server daemon", "service"),
-            SDUnit("Another", "as said by Loki", "service"),
-        ]
+        self.units: list[SDUnit] = []
+        self.reload_units()
         self.logger.debug("Created model instance containing %s units", len(self.units))
 
     @typing.override
@@ -85,6 +84,25 @@ class SDUnitListModel(QAbstractListModel):
             ItemDataRole.UserRole + 3: b"unitType",
         }
         return roles
+
+    def reload_units(self):
+        """Reload list of units."""
+        self.units = []
+
+        with varlink.Client("unix:/run/user/1000/systemd/io.systemd.Manager") as client:
+            # for interface in client.get_interfaces():
+            #     self.logger.debug("found: %s", interface)
+            with client.open("io.systemd.Unit") as connection:
+                for unit in connection.List(_more=True):
+                    self.logger.debug("found: %s", unit)
+
+                    context = unit["context"]
+
+                    name = context["ID"]
+                    description = context.get("Description", "")
+                    unitType = context["Type"]
+
+                    self.units.append(SDUnit(name, description, unitType))
 
 
 @dataclasses.dataclass

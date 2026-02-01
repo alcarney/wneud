@@ -11,7 +11,8 @@
         "--socket=fallback-x11",
         "--socket=wayland",
         "--device=dri",
-        "--socket=pulseaudio"
+        "--socket=pulseaudio",
+        "--filesystem=xdg-run/systemd"
     ],
     "modules": [
         "python3-varlink.json",
