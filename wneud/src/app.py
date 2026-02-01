@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import signal
@@ -10,11 +11,16 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
+from .models import SDUnitListModel
+
 if typing.TYPE_CHECKING:
     from collections.abc import Sequence
 
 
 def main(args: Sequence[str] | None = None):
+    logging.basicConfig(
+        level=logging.DEBUG, format="[%(levelname)s][%(name)s]: %(message)s"
+    )
     app = QGuiApplication(args or sys.argv)
     engine = QQmlApplicationEngine()
 
@@ -31,10 +37,10 @@ def main(args: Sequence[str] | None = None):
 
     src = pathlib.Path(__file__).parent.resolve()
     main_qml = src / "qml/main.qml"
-    print(f"QML: {main_qml}")
+
     engine.load(QUrl(main_qml.as_uri()))
 
     if len(engine.rootObjects()) == 0:
         sys.exit(1)
 
-    app.exec()
+    sys.exit(app.exec())

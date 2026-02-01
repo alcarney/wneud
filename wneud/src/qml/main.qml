@@ -3,6 +3,8 @@ import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
+import WneudModels 1.0
+
 Kirigami.ApplicationWindow {
     id: root
 
@@ -13,19 +15,8 @@ Kirigami.ApplicationWindow {
     width: minimumWidth
     height: minimumHeight
 
-    // TODO: Move to backed.
-    ListModel {
+    SDUnitListModel {
         id: sdUnitsModel
-        ListElement {
-            name: "Emacs"
-            description: "Emacs server daemon"
-            unitType: "service"
-        }
-        ListElement {
-            name: "Something else"
-            description: "Some other server daemon"
-            unitType: "service"
-        }
     }
 
     Component {
@@ -48,7 +39,7 @@ Kirigami.ApplicationWindow {
 
                     Kirigami.Heading {
                         level: 2
-                        text: unitType
+                        text: model.unitType
                     }
 
                     ColumnLayout {
@@ -60,13 +51,13 @@ Kirigami.ApplicationWindow {
 
                         Kirigami.Separator {
                             Layout.fillWidth: true
-                            visible: description.length > 0
+                            visible: model.description.length > 0
                         }
                         Controls.Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: description
-                            visible: description.length > 0
+                            text: model.description
+                            visible: model.description.length > 0
                         }
                     }
 

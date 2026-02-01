@@ -13,11 +13,15 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 readme = "README.md"
-dependencies = []
+dependencies = [
+    "PySide6"
+]
 
 [project.scripts]
 wneud = "wneud.app:main"
 
+[tool.pyright]
+include = ["src"]
 
 [tool.setuptools]
 packages = ["wneud", "wneud.qml"]
