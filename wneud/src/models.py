@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import dataclasses
 import logging
 import typing
 
 import varlink
-from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
+from PySide6.QtCore import Property, QAbstractListModel, QModelIndex, QObject, Qt
 from PySide6.QtQml import QmlElement
 
 if typing.TYPE_CHECKING:
@@ -55,13 +54,7 @@ class SDUnitListModel(QAbstractListModel):
         # self.logger.debug("selected row: %s", item)
 
         if role in {ItemDataRole.DisplayRole, ItemDataRole.UserRole + 1}:
-            return item.name
-
-        if role == ItemDataRole.UserRole + 2:
-            return item.description
-
-        if role == ItemDataRole.UserRole + 3:
-            return item.unitType
+            return item
 
         self.logger.debug(".data() returning none")
         return None
@@ -73,13 +66,10 @@ class SDUnitListModel(QAbstractListModel):
 
     @typing.override
     def roleNames(self):
-        # TODO: do some dataclass introspection!
         # self.logger.debug("roleNames called")
         roles: dict[int, QByteArray] = {
             **super().roleNames(),
-            ItemDataRole.UserRole + 1: b"name",
-            ItemDataRole.UserRole + 2: b"description",
-            ItemDataRole.UserRole + 3: b"unitType",
+            ItemDataRole.UserRole + 1: b"item",
         }
         return roles
 
@@ -107,16 +97,39 @@ class SDUnitListModel(QAbstractListModel):
                         self.system_units.append(unit)
 
 
-@dataclasses.dataclass
-class SDUnit:
+@typing.final
+class SDUnit(QObject):
     """Represents a systemd unit"""
 
-    name: str
-    description: str | None
-    unitType: str
+    def __init__(
+        self,
+        name: str,
+        description: str | None,
+        unitType: str,
+        sourcePath: str | None,
+        fragmentPath: str | None,
+        parent=None,
+    ):
+        super().__init__(parent)
 
-    sourcePath: str | None
-    fragmentPath: str | None
+        self._name = name
+        self._description = description
+        self._unitType = unitType
+
+        self.sourcePath = sourcePath
+        self.fragmentPath = fragmentPath
+
+    @Property(str, constant=True)
+    def name(self):
+        return self._name
+
+    @Property(str, constant=True)
+    def description(self):
+        return self._description or ""
+
+    @Property(str, constant=True)
+    def unitType(self):
+        return self._unitType
 
     @classmethod
     def from_varlink(cls, item: VarlinkUnit):

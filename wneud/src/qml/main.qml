@@ -39,32 +39,37 @@ Kirigami.ApplicationWindow {
 
                     Kirigami.Heading {
                         level: 2
-                        text: model.unitType
+                        text: model.item.unitType
                     }
 
                     ColumnLayout {
                         Kirigami.Heading {
                             Layout.fillWidth: true
                             level: 1
-                            text: name
+                            text: model.item.name
                         }
 
                         Kirigami.Separator {
                             Layout.fillWidth: true
-                            visible: model.description.length > 0
+                            visible: model.item.description.length > 0
                         }
                         Controls.Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: model.description
-                            visible: model.description.length > 0
+                            text: model.item.description
+                            visible: model.item.description.length > 0
                         }
                     }
 
                     Controls.Button {
                         Layout.alignment: Qt.AlignRight
                         Layout.columnSpan: 2
-                        text: "A button"
+                        text: "Details"
+                        onClicked: {
+                            root.pageStack.push(Qt.resolvedUrl("UnitDetail.qml"), {
+                                unit: model.item
+                            })
+                        }
                     }
                 }
             }
