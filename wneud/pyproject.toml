@@ -15,6 +15,10 @@ classifiers = [
 readme = "README.md"
 dependencies = [
     "PySide6",
+    # This is a required dependency, but I have issues trying to install this from PyPi.
+    # Currently relying on flatpak to ensure it is available.
+    #
+    # "systemd-python",
     "varlink",
 ]
 
@@ -28,6 +32,10 @@ dev = [
 
 [tool.pyright]
 include = ["src"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["wneud", "wneud.qml"]

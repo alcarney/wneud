@@ -16,6 +16,7 @@
     ],
     "modules": [
         "python3-varlink.json",
+        "python-systemd.json",
         {
             "name": "wneud",
             "buildsystem": "simple",
