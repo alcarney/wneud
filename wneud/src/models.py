@@ -4,11 +4,17 @@ import logging
 import typing
 
 import varlink
-from PySide6.QtCore import Property, QAbstractListModel, QModelIndex, QObject, Qt
+from PySide6.QtCore import Property
+from PySide6.QtCore import QAbstractListModel
+from PySide6.QtCore import QModelIndex
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Qt
 from PySide6.QtQml import QmlElement
 
 if typing.TYPE_CHECKING:
-    from PySide6.QtCore import QByteArray, QObject, QPersistentModelIndex
+    from PySide6.QtCore import QByteArray
+    from PySide6.QtCore import QObject
+    from PySide6.QtCore import QPersistentModelIndex
 
     from .sd_types import VarlinkUnit
 
@@ -18,6 +24,52 @@ ItemDataRole = Qt.ItemDataRole
 
 QML_IMPORT_NAME = "WneudModels"
 QML_IMPORT_MAJOR_VERSION = 1
+
+
+@QmlElement
+class JournalLogModel(QAbstractListModel):
+    """A list model for displaying log messages."""
+
+    def __init__(self, parent: QObject | None = None):
+        super().__init__(parent)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.messages = [f"Line {i}" for i in range(1000)]
+        self.logger.debug("Model created")
+
+    @typing.override
+    def data(self, index: ModelIndex, /, role: int):
+        if not index.isValid():
+            self.logger.debug(".data() called with invalid index: %s", index)
+            return None
+
+        if (row := index.row()) > len(self.messages):
+            self.logger.debug(
+                "row %d is greater than unit list length (%d)", row, len(self.messages)
+            )
+            return None
+
+        item = self.messages[row]
+        self.logger.debug("selected row: %s", item)
+
+        if role in {ItemDataRole.DisplayRole, ItemDataRole.UserRole + 1}:
+            return item
+
+        self.logger.debug(".data() returning none")
+        return None
+
+    @typing.override
+    def rowCount(self, parent: ModelIndex = QModelIndex()):
+        # self.logger.debug("rowCount called")
+        return len(self.messages)
+
+    @typing.override
+    def roleNames(self):
+        self.logger.debug("roleNames called")
+        roles: dict[int, QByteArray] = {
+            **super().roleNames(),
+            ItemDataRole.UserRole + 1: b"message",
+        }
+        return roles
 
 
 @QmlElement
