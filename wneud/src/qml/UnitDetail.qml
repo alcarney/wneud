@@ -12,6 +12,7 @@ Kirigami.Page {
 
     JournalLogModel {
         id: unitLogModel
+        forUnit: unit.name
     }
 
     ColumnLayout {
@@ -41,7 +42,7 @@ Kirigami.Page {
             model: unitLogModel
             delegate: Controls.ItemDelegate {
                 width: ListView.view.width
-                text: message
+                text: `${timestamp}: ${message}`
             }
         }
     }

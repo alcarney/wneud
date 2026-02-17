@@ -9,13 +9,16 @@ from PySide6.QtCore import QAbstractListModel
 from PySide6.QtCore import QModelIndex
 from PySide6.QtCore import QObject
 from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal
 from PySide6.QtQml import QmlElement
+from systemd import journal
 
 if typing.TYPE_CHECKING:
     from PySide6.QtCore import QByteArray
     from PySide6.QtCore import QObject
     from PySide6.QtCore import QPersistentModelIndex
 
+    from .sd_types import JournalRecord
     from .sd_types import VarlinkUnit
 
     ModelIndex = QModelIndex | QPersistentModelIndex
@@ -26,15 +29,23 @@ QML_IMPORT_NAME = "WneudModels"
 QML_IMPORT_MAJOR_VERSION = 1
 
 
+@typing.final
 @QmlElement
 class JournalLogModel(QAbstractListModel):
-    """A list model for displaying log messages."""
+    """A list model for querying and displaying log messages."""
+
+    MessageRole = ItemDataRole.UserRole + 1
+    TimestampRole = ItemDataRole.UserRole + 2
+
+    forUnitChanged = Signal()
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.messages = [f"Line {i}" for i in range(1000)]
-        self.logger.debug("Model created")
+        self.messages: list[JournalRecord] = []
+
+        self.reader = journal.Reader()
+        self._for_unit: str = ""
 
     @typing.override
     def data(self, index: ModelIndex, /, role: int):
@@ -51,8 +62,11 @@ class JournalLogModel(QAbstractListModel):
         item = self.messages[row]
         self.logger.debug("selected row: %s", item)
 
-        if role in {ItemDataRole.DisplayRole, ItemDataRole.UserRole + 1}:
-            return item
+        if role in {ItemDataRole.DisplayRole, self.MessageRole}:
+            return item["MESSAGE"]
+
+        if role == self.TimestampRole:
+            return f"{item['__REALTIME_TIMESTAMP']:%Y-%m-%d %H:%M:%S}"
 
         self.logger.debug(".data() returning none")
         return None
@@ -67,9 +81,52 @@ class JournalLogModel(QAbstractListModel):
         self.logger.debug("roleNames called")
         roles: dict[int, QByteArray] = {
             **super().roleNames(),
-            ItemDataRole.UserRole + 1: b"message",
+            self.MessageRole: b"message",
+            self.TimestampRole: b"timestamp",
         }
         return roles
+
+    def get_for_unit(self):
+        return self._for_unit
+
+    def set_for_unit(self, unit_name: str):
+        self._for_unit = unit_name
+        self.logger.debug("Unit Name: %r", unit_name)
+        self.forUnitChanged.emit()
+        self.reload_log()
+
+    forUnit = Property(str, fget=get_for_unit, fset=set_for_unit, notify=forUnitChanged)
+
+    def reload_log(self):
+        self.beginResetModel()
+        self.logger.debug("reloading logs")
+        self.messages.clear()
+
+        # We want the equivalent of `journalctl --user -u unit.name -I`
+        # where -I limits results to the latest invocation id.
+        #
+        # As far as I can tell, the only way to get this is to look at the latest message
+        # to discover the invocation id to set as the filter.
+        reader = journal.Reader()
+        unit_filter = f"USER_UNIT={self._for_unit}"
+
+        self.logger.debug("Unit filter: %r", unit_filter)
+        reader.add_match(unit_filter)
+        reader.seek_tail()
+
+        entry = reader.get_previous()
+
+        invocation_filter = f"_SYSTEMD_INVOCATION_ID={entry['USER_INVOCATION_ID']}"
+        self.logger.debug("invocation filter: %r", invocation_filter)
+
+        self.reader = journal.Reader()
+        self.reader.add_match(invocation_filter)
+
+        for entry in self.reader:
+            self.logger.debug("%s", entry)
+            self.messages.append(entry)
+
+        self.endResetModel()
 
 
 @QmlElement

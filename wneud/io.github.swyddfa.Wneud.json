@@ -12,7 +12,8 @@
         "--socket=wayland",
         "--device=dri",
         "--socket=pulseaudio",
-        "--filesystem=xdg-run/systemd"
+        "--filesystem=xdg-run/systemd",
+        "--filesystem=/var/log/journal:ro"
     ],
     "modules": [
         "python3-varlink.json",
