@@ -38,10 +38,15 @@ Kirigami.Page {
             Layout.fillHeight: true
 
             clip: true
+            contentWidth: contentItem.childrenRect.width
+            flickableDirection: Flickable.HorizontalAndVerticalFlick
+
+            Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+            Controls.ScrollBar.horizontal: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
 
             model: unitLogModel
-            delegate: Controls.ItemDelegate {
-                width: ListView.view.width
+            delegate: Controls.Label {
+                width: implicitWidth
                 text: `${timestamp}: ${message}`
             }
         }
