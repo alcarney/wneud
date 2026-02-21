@@ -21,11 +21,18 @@ class JournalRecord(typing.TypedDict, total=False):
     __REALTIME_TIMESTAMP: typing.Required[datetime]
 
 
-class VarlinkUnit(typing.TypedDict, total=False):
+class VarlinkUnit(typing.TypedDict, total=True):
     """Represents the varlink representation of a systemd unit.
 
     (Other fields may be present, this only represents the fields we currently use.)
     """
+
+    context: UnitContext
+    runtime: UnitRuntime
+
+
+class UnitContext(typing.TypedDict, total=False):
+    """A unit's context"""
 
     ID: typing.Required[str]
     Type: typing.Required[str]
@@ -33,3 +40,11 @@ class VarlinkUnit(typing.TypedDict, total=False):
     Description: str
     SourcePath: str
     FragementPath: str
+
+
+class UnitRuntime(typing.TypedDict, total=False):
+    """A unit's runtime information."""
+
+    CanStart: typing.Required[bool]
+    CanStop: typing.Required[bool]
+    CanReload: typing.Required[bool]

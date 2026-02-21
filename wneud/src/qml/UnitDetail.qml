@@ -10,6 +10,36 @@ Kirigami.Page {
 
     title: unit.name
 
+    actions: [
+        Kirigami.Action {
+            text: "Stop"
+            icon.name: "media-playback-stop-symbolic"
+            visible: unit.canStop
+
+            onTriggered: {
+                unit.stop()
+            }
+        },
+        Kirigami.Action {
+            text: "Restart"
+            icon.name: "view-refresh-symbolic"
+            visible: unit.canReload
+
+            onTriggered: {
+                unit.restart()
+            }
+        },
+        Kirigami.Action {
+            text: "Start"
+            icon.name: "media-playback-start-symbolic"
+            visible: unit.canStart
+
+            onTriggered: {
+                unit.start()
+            }
+        },
+    ]
+
     JournalLogModel {
         id: unitLogModel
         forUnit: unit.name

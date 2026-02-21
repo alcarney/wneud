@@ -10,6 +10,7 @@ from PySide6.QtCore import QModelIndex
 from PySide6.QtCore import QObject
 from PySide6.QtCore import Qt
 from PySide6.QtCore import Signal
+from PySide6.QtCore import Slot
 from PySide6.QtQml import QmlElement
 from systemd import journal
 
@@ -60,7 +61,7 @@ class JournalLogModel(QAbstractListModel):
             return None
 
         item = self.messages[row]
-        self.logger.debug("selected row: %s", item)
+        # self.logger.debug("selected row: %s", item)
 
         if role in {ItemDataRole.DisplayRole, self.MessageRole}:
             return item["MESSAGE"]
@@ -123,7 +124,7 @@ class JournalLogModel(QAbstractListModel):
         self.reader.add_match(invocation_filter)
 
         for entry in self.reader:
-            self.logger.debug("%s", entry)
+            # self.logger.debug("%s", entry)
             self.messages.append(entry)
 
         self.endResetModel()
@@ -190,7 +191,8 @@ class SDUnitListModel(QAbstractListModel):
         with varlink.Client("unix:/run/user/1000/systemd/io.systemd.Manager") as client:
             with client.open("io.systemd.Unit") as connection:
                 for item in connection.List(_more=True):
-                    unit = SDUnit.from_varlink(item["context"])
+                    # self.logger.debug("%s", item)
+                    unit = SDUnit(item)
 
                     # It might seem strange to talk about 'system' units since we're connected
                     # to the user systemd instance however, there are many system services
@@ -199,6 +201,7 @@ class SDUnitListModel(QAbstractListModel):
                     # So for our purposes a 'user' unit is one that lives in .config/systemd/user
                     # as it's most likely been set up by us or the user independently.
                     source = unit.sourcePath or unit.fragmentPath
+                    self.logger.debug("%s (%s)", unit.name, source)
                     if source is not None and ".config/systemd" in source:
                         self.user_units.append(unit)
 
@@ -212,42 +215,52 @@ class SDUnit(QObject):
 
     def __init__(
         self,
-        name: str,
-        description: str | None,
-        unitType: str,
-        sourcePath: str | None,
-        fragmentPath: str | None,
+        item: VarlinkUnit,
         parent=None,
     ):
         super().__init__(parent)
-
-        self._name = name
-        self._description = description
-        self._unitType = unitType
-
-        self.sourcePath = sourcePath
-        self.fragmentPath = fragmentPath
+        self._item = item
 
     @Property(str, constant=True)
     def name(self):
-        return self._name
+        return self._item["context"]["ID"]
 
     @Property(str, constant=True)
     def description(self):
-        return self._description or ""
+        return self._item["context"].get("Description", "")
 
     @Property(str, constant=True)
     def unitType(self):
-        return self._unitType
+        return self._item["context"]["Type"]
 
-    @classmethod
-    def from_varlink(cls, item: VarlinkUnit):
-        """Create an instance from the varlink representation"""
+    @Property(bool, constant=True)
+    def canStart(self):
+        return self._item["runtime"]["CanStart"]
 
-        return cls(
-            name=item["ID"],
-            description=item.get("Description"),
-            unitType=item["Type"],
-            sourcePath=item.get("SourcePath"),
-            fragmentPath=item.get("FragmentPath"),
-        )
+    @Property(bool, constant=True)
+    def canStop(self):
+        return self._item["runtime"]["CanStop"]
+
+    @Property(bool, constant=True)
+    def canReload(self):
+        return self._item["runtime"]["CanReload"]
+
+    @property
+    def sourcePath(self):
+        return self._item["context"].get("SourcePath")
+
+    @property
+    def fragmentPath(self):
+        return self._item["context"].get("FragmentPath")
+
+    @Slot()
+    def start(self):
+        print(f"Start {self.name!r}")
+
+    @Slot()
+    def restart(self):
+        print(f"Restarting {self.name!r}")
+
+    @Slot()
+    def stop(self):
+        print(f"Stopping {self.name!r}")
