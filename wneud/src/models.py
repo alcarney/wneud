@@ -1,26 +1,28 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 import typing
 
-import varlink
-from PySide6.QtCore import Property
-from PySide6.QtCore import QAbstractListModel
-from PySide6.QtCore import QModelIndex
-from PySide6.QtCore import QObject
-from PySide6.QtCore import Qt
-from PySide6.QtCore import Signal
-from PySide6.QtCore import Slot
-from PySide6.QtQml import QmlElement
+from PyQt6.QtCore import QAbstractListModel
+from PyQt6.QtCore import QModelIndex
+from PyQt6.QtCore import QObject
+from PyQt6.QtCore import Qt
+from PyQt6.QtCore import pyqtProperty
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtDBus import QDBusConnection
+from PyQt6.QtDBus import QDBusInterface
+from PyQt6.QtDBus import QDBusMessage
+from PyQt6.QtQml import qmlRegisterType
 from systemd import journal
 
 if typing.TYPE_CHECKING:
-    from PySide6.QtCore import QByteArray
-    from PySide6.QtCore import QObject
-    from PySide6.QtCore import QPersistentModelIndex
+    from PyQt6.QtCore import QByteArray
+    from PyQt6.QtCore import QObject
+    from PyQt6.QtCore import QPersistentModelIndex
 
     from .sd_types import JournalRecord
-    from .sd_types import VarlinkUnit
 
     ModelIndex = QModelIndex | QPersistentModelIndex
 
@@ -28,17 +30,17 @@ ItemDataRole = Qt.ItemDataRole
 
 QML_IMPORT_NAME = "WneudModels"
 QML_IMPORT_MAJOR_VERSION = 1
+QML_IMPORT_MINOR_VERSION = 0
 
 
 @typing.final
-@QmlElement
 class JournalLogModel(QAbstractListModel):
     """A list model for querying and displaying log messages."""
 
     MessageRole = ItemDataRole.UserRole + 1
     TimestampRole = ItemDataRole.UserRole + 2
 
-    forUnitChanged = Signal()
+    forUnitChanged = pyqtSignal()
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -96,7 +98,9 @@ class JournalLogModel(QAbstractListModel):
         self.forUnitChanged.emit()
         self.reload_log()
 
-    forUnit = Property(str, fget=get_for_unit, fset=set_for_unit, notify=forUnitChanged)
+    forUnit = pyqtProperty(
+        str, fget=get_for_unit, fset=set_for_unit, notify=forUnitChanged
+    )
 
     def reload_log(self):
         self.beginResetModel()
@@ -130,7 +134,6 @@ class JournalLogModel(QAbstractListModel):
         self.endResetModel()
 
 
-@QmlElement
 class SDUnitListModel(QAbstractListModel):
     """A list model for systemd units."""
 
@@ -140,6 +143,20 @@ class SDUnitListModel(QAbstractListModel):
 
         self.system_units: list[SDUnit] = []
         self.user_units: list[SDUnit] = []
+
+        bus = QDBusConnection.sessionBus()
+        if not bus.isConnected():
+            raise RuntimeError("Unable to connection to dbus.")
+
+        self.systemd = QDBusInterface(
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            interface="org.freedesktop.systemd1.Manager",
+            connection=bus,
+        )
+        if not self.systemd.isValid():
+            message = self.systemd.lastError().message()
+            raise RuntimeError(f"Unable to connect to systemd: {message!r}")
 
         self.reload_units()
 
@@ -188,25 +205,54 @@ class SDUnitListModel(QAbstractListModel):
         self.user_units.clear()
         self.system_units.clear()
 
-        with varlink.Client("unix:/run/user/1000/systemd/io.systemd.Manager") as client:
-            with client.open("io.systemd.Unit") as connection:
-                for item in connection.List(_more=True):
-                    # self.logger.debug("%s", item)
-                    unit = SDUnit(item)
+        loaded_units = self.systemd.call("ListUnits")
+        if loaded_units.type() == QDBusMessage.MessageType.ReplyMessage:
+            for item in loaded_units.arguments()[0]:
+                unit = {
+                    "context": {
+                        "ID": item[0],
+                        "Description": item[1],
+                        "Type": "",
+                        "SourcePath": "",
+                        "FragmentPath": "",
+                    },
+                    "runtime": {
+                        "CanStart": False,
+                        "CanStop": False,
+                        "CanReload": False,
+                    },
+                }
+                # self.user_units.append(SDUnit(unit))
 
-                    # It might seem strange to talk about 'system' units since we're connected
-                    # to the user systemd instance however, there are many system services
-                    # running in the user instance that we probably should leave well alone.
-                    #
-                    # So for our purposes a 'user' unit is one that lives in .config/systemd/user
-                    # as it's most likely been set up by us or the user independently.
-                    source = unit.sourcePath or unit.fragmentPath
-                    self.logger.debug("%s (%s)", unit.name, source)
-                    if source is not None and ".config/systemd" in source:
-                        self.user_units.append(unit)
-
-                    else:
-                        self.system_units.append(unit)
+        unit_files = self.systemd.call("ListUnitFiles")
+        if unit_files.type() == QDBusMessage.MessageType.ReplyMessage:
+            for item in unit_files.arguments()[0]:
+                unit = {
+                    "context": {
+                        "ID": pathlib.Path(item[0]).name,
+                        "Description": "",
+                        "Type": "",
+                        "SourcePath": item[0],
+                        "FragmentPath": "",
+                    },
+                    "runtime": {
+                        "CanStart": False,
+                        "CanStop": False,
+                        "CanReload": False,
+                    },
+                }
+                # It might seem strange to talk about 'system' units since we're connected
+                # to the user systemd instance however, there are many system services
+                # running in the user instance that we probably should leave well alone.
+                #
+                # So for our purposes a 'user' unit is one that lives in .config/systemd/user
+                # as it's most likely been set up by us or the user independently.
+                source = item[0]
+                # self.logger.debug("%s (%s)", unit.name, source)
+                if source is not None and ".config/systemd" in source:
+                    self.user_units.append(SDUnit(unit))
+                else:
+                    self.system_units.append(SDUnit(unit))
 
 
 @typing.final
@@ -221,27 +267,27 @@ class SDUnit(QObject):
         super().__init__(parent)
         self._item = item
 
-    @Property(str, constant=True)
+    @pyqtProperty(str, constant=True)
     def name(self):
         return self._item["context"]["ID"]
 
-    @Property(str, constant=True)
+    @pyqtProperty(str, constant=True)
     def description(self):
         return self._item["context"].get("Description", "")
 
-    @Property(str, constant=True)
+    @pyqtProperty(str, constant=True)
     def unitType(self):
         return self._item["context"]["Type"]
 
-    @Property(bool, constant=True)
+    @pyqtProperty(bool, constant=True)
     def canStart(self):
         return self._item["runtime"]["CanStart"]
 
-    @Property(bool, constant=True)
+    @pyqtProperty(bool, constant=True)
     def canStop(self):
         return self._item["runtime"]["CanStop"]
 
-    @Property(bool, constant=True)
+    @pyqtProperty(bool, constant=True)
     def canReload(self):
         return self._item["runtime"]["CanReload"]
 
@@ -253,14 +299,30 @@ class SDUnit(QObject):
     def fragmentPath(self):
         return self._item["context"].get("FragmentPath")
 
-    @Slot()
+    @pyqtSlot()
     def start(self):
         print(f"Start {self.name!r}")
 
-    @Slot()
+    @pyqtSlot()
     def restart(self):
         print(f"Restarting {self.name!r}")
 
-    @Slot()
+    @pyqtSlot()
     def stop(self):
         print(f"Stopping {self.name!r}")
+
+
+qmlRegisterType(
+    JournalLogModel,
+    QML_IMPORT_NAME,
+    QML_IMPORT_MAJOR_VERSION,
+    QML_IMPORT_MINOR_VERSION,
+    "JournalLogModel",
+)
+qmlRegisterType(
+    SDUnitListModel,
+    QML_IMPORT_NAME,
+    QML_IMPORT_MAJOR_VERSION,
+    QML_IMPORT_MINOR_VERSION,
+    "SDUnitListModel",
+)

@@ -7,9 +7,9 @@ import signal
 import sys
 import typing
 
-from PySide6.QtCore import QUrl
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtQml import QQmlApplicationEngine
 
 from .models import SDUnitListModel
 

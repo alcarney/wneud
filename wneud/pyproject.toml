@@ -14,7 +14,7 @@ classifiers = [
 ]
 readme = "README.md"
 dependencies = [
-    "PySide6",
+    "PyQt6",
     # This is a required dependency, but I have issues trying to install this from PyPi.
     # Currently relying on flatpak to ensure it is available.
     #
