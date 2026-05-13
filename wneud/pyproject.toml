@@ -39,7 +39,12 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["wneud", "wneud.models", "wneud.qml"]
+packages = [
+    "wneud",
+    "wneud.models",
+    "wneud.qml",
+    "wneud.services",
+]
 package-dir = {wneud = "src"}
 include-package-data = true
 

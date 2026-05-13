@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import pathlib
 import typing
 
 from PyQt6.QtCore import QAbstractListModel
@@ -10,17 +9,15 @@ from PyQt6.QtCore import QObject
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtDBus import QDBusConnection
-from PyQt6.QtDBus import QDBusInterface
 from PyQt6.QtDBus import QDBusMessage
 from PyQt6.QtQml import qmlRegisterType
 from systemd import journal
 
+from wneud.services import SystemDService
+
 from .units import Unit
 
 if typing.TYPE_CHECKING:
-    from typing import Any
-
     from PyQt6.QtCore import QByteArray
     from PyQt6.QtCore import QObject
     from PyQt6.QtCore import QPersistentModelIndex
@@ -137,6 +134,7 @@ class JournalLogModel(QAbstractListModel):
         self.endResetModel()
 
 
+@typing.final
 class SDUnitListModel(QAbstractListModel):
     """A list model for systemd units."""
 
@@ -144,23 +142,10 @@ class SDUnitListModel(QAbstractListModel):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
 
+        self.systemd = SystemDService(parent)
         self.system_units: list[Unit] = []
         self.user_units: list[Unit] = []
         self.unit_index: dict[str, Unit] = {}
-
-        bus = QDBusConnection.sessionBus()
-        if not bus.isConnected():
-            raise RuntimeError("Unable to connection to dbus.")
-
-        self.systemd = QDBusInterface(
-            "org.freedesktop.systemd1",
-            "/org/freedesktop/systemd1",
-            interface="org.freedesktop.systemd1.Manager",
-            connection=bus,
-        )
-        if not self.systemd.isValid():
-            message = self.systemd.lastError().message()
-            raise RuntimeError(f"Unable to connect to systemd: {message!r}")
 
         self.reload_units()
 
@@ -210,33 +195,47 @@ class SDUnitListModel(QAbstractListModel):
         self.user_units.clear()
         self.system_units.clear()
 
-        unit_files = self.systemd.call("ListUnitFiles")
-        if unit_files.type() == QDBusMessage.MessageType.ReplyMessage:
-            for path, status in unit_files.arguments()[0]:
-                # self.logger.debug("UnitFile %s (%s)", path, status)
-                unit = Unit.from_filepath(path, status)
-                self.unit_index[unit.id] = unit
+        unit_files = self.systemd.list_unit_files()
+        for path, status in unit_files:
+            # self.logger.debug("UnitFile %s (%s)", path, status)
+            unit = Unit.from_filepath(path, status, systemd=self.systemd)
+            self.unit_index[unit.id] = unit
 
-                # It might seem strange to talk about 'system' units since we're connected
-                # to the user systemd instance however, there are many system services
-                # running in the user instance that we probably should leave well alone.
-                #
-                # So for our purposes a 'user' unit is one that lives in .config/systemd/user
-                # as it's most likely been set up by us or the user independently
-                if ".config/systemd" in unit.fragmentPath:
-                    self.user_units.append(unit)
-                else:
-                    self.system_units.append(unit)
+            # It might seem strange to talk about 'system' units since we're connected
+            # to the user systemd instance however, there are many system services
+            # running in the user instance that we probably should leave well alone.
+            #
+            # So for our purposes a 'user' unit is one that lives in .config/systemd/user
+            # as it's most likely been set up by us or the user independently
+            if ".config/systemd" in unit.fragmentPath:
+                self.user_units.append(unit)
+            else:
+                self.system_units.append(unit)
 
-        loaded_units = self.systemd.call("ListUnits")
-        if loaded_units.type() == QDBusMessage.MessageType.ReplyMessage:
-            for item in loaded_units.arguments()[0]:
-                self.logger.debug("UnitState: %s", item)
-                if (unit := self.unit_index.get(item[0], None)) is None:
-                    self.logger.warning("Unknown unit: %s", item[0])
-                    continue
+        loaded_units = self.systemd.list_units()
+        for item in loaded_units:
+            self.logger.debug("UnitState: %s", item)
 
-                unit.description = item[1]
+            (
+                name,
+                desc,
+                load_state,
+                active_state,
+                state,
+                _,
+                obj_path,
+                job_id,
+                job_type,
+                job_obj_path,
+            ) = item
+
+            if (unit := self.unit_index.get(name, None)) is None:
+                # TODO: Handle transient units, e.g. those created via systemd-run
+                self.logger.warning("Unknown unit: %s", name)
+                continue
+
+            unit.description = desc
+            unit.objectPath = obj_path
 
 
 qmlRegisterType(

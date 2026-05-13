@@ -6,79 +6,83 @@ import org.kde.kirigami as Kirigami
 import WneudModels 1.0
 
 Kirigami.Page {
-    property var unit
+  property var unit
 
-    title: unit.name
+  title: unit.name
 
-    actions: [
-        Kirigami.Action {
-            text: "Stop"
-            icon.name: "media-playback-stop-symbolic"
-            visible: unit.canStop
+  Component.onCompleted: {
+    unit.refresh()
+  }
 
-            onTriggered: {
-                unit.stop()
-            }
-        },
-        Kirigami.Action {
-            text: "Restart"
-            icon.name: "view-refresh-symbolic"
-            visible: unit.canReload
+  actions: [
+    Kirigami.Action {
+      text: "Stop"
+      icon.name: "media-playback-stop-symbolic"
+      visible: unit.canStop
 
-            onTriggered: {
-                unit.restart()
-            }
-        },
-        Kirigami.Action {
-            text: "Start"
-            icon.name: "media-playback-start-symbolic"
-            visible: unit.canStart
+      onTriggered: {
+        unit.stop()
+      }
+    },
+    Kirigami.Action {
+      text: "Restart"
+      icon.name: "view-refresh-symbolic"
+      visible: unit.canReload
 
-            onTriggered: {
-                unit.start()
-            }
-        },
-    ]
+      onTriggered: {
+        unit.restart()
+      }
+    },
+    Kirigami.Action {
+      text: "Start"
+      icon.name: "media-playback-start-symbolic"
+      visible: unit.canStart
 
-    JournalLogModel {
-        id: unitLogModel
-        forUnit: unit.id
+      onTriggered: {
+        unit.start()
+      }
+    },
+  ]
+
+  JournalLogModel {
+    id: unitLogModel
+    forUnit: unit.id
+  }
+
+  ColumnLayout {
+
+    anchors.fill: parent
+
+    Kirigami.FormLayout {
+
+      Layout.fillWidth: true
+      Layout.fillHeight: true
+      Layout.maximumHeight: implicitHeight
+
+      Controls.TextField {
+        Kirigami.FormData.label: "Description:"
+        text: unit.description
+      }
     }
 
-    ColumnLayout {
+    ListView {
+      id: unitLogView
 
-        anchors.fill: parent
+      Layout.fillWidth: true
+      Layout.fillHeight: true
 
-        Kirigami.FormLayout {
+      clip: true
+      contentWidth: contentItem.childrenRect.width
+      flickableDirection: Flickable.HorizontalAndVerticalFlick
 
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.maximumHeight: implicitHeight
+      Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+      Controls.ScrollBar.horizontal: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
 
-            Controls.TextField {
-                Kirigami.FormData.label: "Description:"
-                text: unit.description
-            }
-        }
-
-        ListView {
-            id: unitLogView
-
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            clip: true
-            contentWidth: contentItem.childrenRect.width
-            flickableDirection: Flickable.HorizontalAndVerticalFlick
-
-            Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
-            Controls.ScrollBar.horizontal: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
-
-            model: unitLogModel
-            delegate: Controls.Label {
-                width: implicitWidth
-                text: `${timestamp}: ${message}`
-            }
-        }
+      model: unitLogModel
+      delegate: Controls.Label {
+        width: implicitWidth
+        text: `${timestamp}: ${message}`
+      }
     }
+  }
 }

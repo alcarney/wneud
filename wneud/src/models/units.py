@@ -1,28 +1,33 @@
 from __future__ import annotations
 
+import logging
 import pathlib
 import typing
 
 from PyQt6.QtCore import QObject
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSlot
 
 if typing.TYPE_CHECKING:
-    from typing import Any
+    from wneud.services import SystemDService
 
 
 class Unit(QObject):
     """Base unit class."""
 
-    descriptionChanged = pyqtSignal()
+    propsChanged = pyqtSignal()
 
     def __init__(
         self,
         unit: dict[str, str],
         parent=None,
+        systemd: SystemDService | None = None,
     ):
         super().__init__(parent)
         self._unit = unit
+        self._systemd = systemd
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     @pyqtProperty(str, constant=True)
     def id(self):
@@ -32,7 +37,7 @@ class Unit(QObject):
     def name(self):
         return self._unit["ID"].split(".")[0]
 
-    @pyqtProperty(str, notify=descriptionChanged)
+    @pyqtProperty(str, notify=propsChanged)
     def description(self):
         return self._unit.get("Description", "")
 
@@ -40,30 +45,57 @@ class Unit(QObject):
     def description(self, value):
         if self._unit.get("Description", "") != value:
             self._unit["Description"] = value
-            self.descriptionChanged.emit()
+            self.propsChanged.emit()
 
     @pyqtProperty(str, constant=True)
     def unitType(self):
         return self._unit["Type"]
 
-    @pyqtProperty(bool, constant=True)
+    @pyqtProperty(bool, notify=propsChanged)
     def canStart(self):
         return self._unit.get("CanStart", False)
 
-    @pyqtProperty(bool, constant=True)
+    @pyqtProperty(bool, notify=propsChanged)
     def canReload(self):
         return self._unit.get("CanReload", False)
 
-    @pyqtProperty(bool, constant=True)
+    @pyqtProperty(bool, notify=propsChanged)
     def canStop(self):
         return self._unit.get("CanStop", False)
+
+    @pyqtProperty(str, notify=propsChanged)
+    def objectPath(self):
+        return self._unit.get("ObjectPath", "")
+
+    @objectPath.setter
+    def objectPath(self, value):
+        if self._unit.get("ObjectPath", "") != value:
+            self._unit["ObjectPath"] = value
+            self.propsChanged.emit()
 
     @pyqtProperty(str, constant=True)
     def fragmentPath(self):
         return self._unit.get("FragmentPath", "")
 
+    @pyqtSlot()
+    def refresh(self):
+        if self.objectPath == "":
+            self.logger.warning(
+                "Unable to refresh unit %r, missing object path", self.id
+            )
+            return
+
+        details = self._systemd.get_unit_properties(self.objectPath)
+        for prop, value in (details or {}).items():
+            self.logger.debug("%s: %s", prop, value)
+            self._unit[prop] = value
+
+        self.propsChanged.emit()
+
     @classmethod
-    def from_filepath(cls, path: str, status: str):
+    def from_filepath(
+        cls, path: str, status: str, systemd: SystemDService | None = None
+    ):
         """Return a unit instance from its filepath"""
         unit_path = pathlib.Path(path)
         data = {
@@ -74,20 +106,18 @@ class Unit(QObject):
 
         match data["Type"]:
             case "path":
-                return PathUnit(data)
+                return PathUnit(data, systemd=systemd)
             case _:
-                return cls(data)
+                return cls(data, systemd=systemd)
 
 
 class PathUnit(Unit):
     """Path unit class."""
 
     def __init__(
-        self,
-        unit: dict[str, str],
-        parent=None,
+        self, unit: dict[str, str], parent=None, systemd: SystemDService | None = None
     ):
-        super().__init__(unit, parent)
+        super().__init__(unit, parent, systemd=systemd)
 
     @pyqtProperty(str, constant=True)
     def unit(self):
