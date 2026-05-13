@@ -10,14 +10,17 @@ from PyQt6.QtCore import QObject
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtDBus import QDBusConnection
 from PyQt6.QtDBus import QDBusInterface
 from PyQt6.QtDBus import QDBusMessage
 from PyQt6.QtQml import qmlRegisterType
 from systemd import journal
 
+from .units import Unit
+
 if typing.TYPE_CHECKING:
+    from typing import Any
+
     from PyQt6.QtCore import QByteArray
     from PyQt6.QtCore import QObject
     from PyQt6.QtCore import QPersistentModelIndex
@@ -141,8 +144,9 @@ class SDUnitListModel(QAbstractListModel):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        self.system_units: list[SDUnit] = []
-        self.user_units: list[SDUnit] = []
+        self.system_units: list[Unit] = []
+        self.user_units: list[Unit] = []
+        self.unit_index: dict[str, Unit] = {}
 
         bus = QDBusConnection.sessionBus()
         if not bus.isConnected():
@@ -202,114 +206,37 @@ class SDUnitListModel(QAbstractListModel):
 
     def reload_units(self):
         """Reload list of units."""
+        self.unit_index.clear()
         self.user_units.clear()
         self.system_units.clear()
 
-        loaded_units = self.systemd.call("ListUnits")
-        if loaded_units.type() == QDBusMessage.MessageType.ReplyMessage:
-            for item in loaded_units.arguments()[0]:
-                unit = {
-                    "context": {
-                        "ID": item[0],
-                        "Description": item[1],
-                        "Type": "",
-                        "SourcePath": "",
-                        "FragmentPath": "",
-                    },
-                    "runtime": {
-                        "CanStart": False,
-                        "CanStop": False,
-                        "CanReload": False,
-                    },
-                }
-                # self.user_units.append(SDUnit(unit))
-
         unit_files = self.systemd.call("ListUnitFiles")
         if unit_files.type() == QDBusMessage.MessageType.ReplyMessage:
-            for item in unit_files.arguments()[0]:
-                unit = {
-                    "context": {
-                        "ID": pathlib.Path(item[0]).name,
-                        "Description": "",
-                        "Type": "",
-                        "SourcePath": item[0],
-                        "FragmentPath": "",
-                    },
-                    "runtime": {
-                        "CanStart": False,
-                        "CanStop": False,
-                        "CanReload": False,
-                    },
-                }
+            for path, status in unit_files.arguments()[0]:
+                # self.logger.debug("UnitFile %s (%s)", path, status)
+                unit = Unit.from_filepath(path, status)
+                self.unit_index[unit.id] = unit
+
                 # It might seem strange to talk about 'system' units since we're connected
                 # to the user systemd instance however, there are many system services
                 # running in the user instance that we probably should leave well alone.
                 #
                 # So for our purposes a 'user' unit is one that lives in .config/systemd/user
-                # as it's most likely been set up by us or the user independently.
-                source = item[0]
-                # self.logger.debug("%s (%s)", unit.name, source)
-                if source is not None and ".config/systemd" in source:
-                    self.user_units.append(SDUnit(unit))
+                # as it's most likely been set up by us or the user independently
+                if ".config/systemd" in unit.fragmentPath:
+                    self.user_units.append(unit)
                 else:
-                    self.system_units.append(SDUnit(unit))
+                    self.system_units.append(unit)
 
+        loaded_units = self.systemd.call("ListUnits")
+        if loaded_units.type() == QDBusMessage.MessageType.ReplyMessage:
+            for item in loaded_units.arguments()[0]:
+                self.logger.debug("UnitState: %s", item)
+                if (unit := self.unit_index.get(item[0], None)) is None:
+                    self.logger.warning("Unknown unit: %s", item[0])
+                    continue
 
-@typing.final
-class SDUnit(QObject):
-    """Represents a systemd unit"""
-
-    def __init__(
-        self,
-        item: VarlinkUnit,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self._item = item
-
-    @pyqtProperty(str, constant=True)
-    def name(self):
-        return self._item["context"]["ID"]
-
-    @pyqtProperty(str, constant=True)
-    def description(self):
-        return self._item["context"].get("Description", "")
-
-    @pyqtProperty(str, constant=True)
-    def unitType(self):
-        return self._item["context"]["Type"]
-
-    @pyqtProperty(bool, constant=True)
-    def canStart(self):
-        return self._item["runtime"]["CanStart"]
-
-    @pyqtProperty(bool, constant=True)
-    def canStop(self):
-        return self._item["runtime"]["CanStop"]
-
-    @pyqtProperty(bool, constant=True)
-    def canReload(self):
-        return self._item["runtime"]["CanReload"]
-
-    @property
-    def sourcePath(self):
-        return self._item["context"].get("SourcePath")
-
-    @property
-    def fragmentPath(self):
-        return self._item["context"].get("FragmentPath")
-
-    @pyqtSlot()
-    def start(self):
-        print(f"Start {self.name!r}")
-
-    @pyqtSlot()
-    def restart(self):
-        print(f"Restarting {self.name!r}")
-
-    @pyqtSlot()
-    def stop(self):
-        print(f"Stopping {self.name!r}")
+                unit.description = item[1]
 
 
 qmlRegisterType(

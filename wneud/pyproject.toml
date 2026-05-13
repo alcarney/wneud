@@ -32,13 +32,14 @@ dev = [
 
 [tool.pyright]
 include = ["src"]
+exclude = ["build", ".flatpak-builder", "dist"]
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["wneud", "wneud.qml"]
+packages = ["wneud", "wneud.models", "wneud.qml"]
 package-dir = {wneud = "src"}
 include-package-data = true
 

@@ -42,7 +42,7 @@ Kirigami.Page {
 
     JournalLogModel {
         id: unitLogModel
-        forUnit: unit.name
+        forUnit: unit.id
     }
 
     ColumnLayout {
