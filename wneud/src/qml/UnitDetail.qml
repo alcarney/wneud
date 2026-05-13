@@ -18,7 +18,7 @@ Kirigami.Page {
     Kirigami.Action {
       text: "Stop"
       icon.name: "media-playback-stop-symbolic"
-      visible: unit.canStop
+      visible: unit.canStop && unit.activeState === 'active'
 
       onTriggered: {
         unit.stop()
@@ -36,7 +36,7 @@ Kirigami.Page {
     Kirigami.Action {
       text: "Start"
       icon.name: "media-playback-start-symbolic"
-      visible: unit.canStart
+      visible: unit.canStart && unit.activeState !== 'active'
 
       onTriggered: {
         unit.start()

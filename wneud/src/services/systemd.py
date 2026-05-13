@@ -52,15 +52,57 @@ class SystemDService(QObject):
         message = iface.call(method, *args)
         match message.type():
             case QDBusMessage.MessageType.ReplyMessage:
+                result = message.arguments()
+                self.logger.debug("reply: %s", result)
                 return message.arguments()
 
             case QDBusMessage.MessageType.ErrorMessage:
-                self.logger.error("%s: %s", message.errorName(), message.errorMessage())
+                self.logger.error(
+                    "error %s: %s", message.errorName(), message.errorMessage()
+                )
                 return None
 
             case _:
                 self.logger.warning("Unknown message type: %s", message.type())
                 return None
+
+    def start_unit(self, unit_name: str, mode: str = "fail"):
+        """Start the given unit name."""
+        result = self._call_debus_method(
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "StartUnit",
+            unit_name,
+            mode,
+        )
+        if result is not None:
+            return result[0]
+
+    def stop_unit(self, unit_name: str, mode: str = "fail"):
+        """Stop the given unit name."""
+        result = self._call_debus_method(
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "StopUnit",
+            unit_name,
+            mode,
+        )
+        if result is not None:
+            return result[0]
+
+    def load_unit(self, unit_name: str):
+        """Load the given unit name."""
+        result = self._call_debus_method(
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "LoadUnit",
+            unit_name,
+        )
+        if result is not None:
+            return result[0]
 
     def list_units(self) -> list[LoadedUnit]:
         """List loaded units."""

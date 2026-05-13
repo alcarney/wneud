@@ -51,6 +51,10 @@ class Unit(QObject):
     def unitType(self):
         return self._unit["Type"]
 
+    @pyqtProperty(str, notify=propsChanged)
+    def activeState(self):
+        return self._unit.get("ActiveState", "")
+
     @pyqtProperty(bool, notify=propsChanged)
     def canStart(self):
         return self._unit.get("CanStart", False)
@@ -78,12 +82,25 @@ class Unit(QObject):
         return self._unit.get("FragmentPath", "")
 
     @pyqtSlot()
+    def start(self):
+        """Start the unit."""
+        self._systemd.start_unit(self.id)
+
+    @pyqtSlot()
+    def stop(self):
+        """Start the unit."""
+        self._systemd.stop_unit(self.id)
+
+    @pyqtSlot()
     def refresh(self):
-        if self.objectPath == "":
-            self.logger.warning(
-                "Unable to refresh unit %r, missing object path", self.id
-            )
-            return
+        if self.objectPath == "" and self.fragmentPath != "":
+            if (object_path := self._systemd.load_unit(self.id)) is not None:
+                self.objectPath = object_path
+            else:
+                self.logger.warning(
+                    "Unable to refresh unit %r, missing object path", self.id
+                )
+                return
 
         details = self._systemd.get_unit_properties(self.objectPath)
         for prop, value in (details or {}).items():
