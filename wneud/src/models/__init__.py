@@ -6,10 +6,11 @@ import typing
 from PyQt6.QtCore import QAbstractListModel
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtCore import QObject
+from PyQt6.QtCore import QSortFilterProxyModel
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtDBus import QDBusMessage
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtQml import qmlRegisterType
 from systemd import journal
 
@@ -27,10 +28,6 @@ if typing.TYPE_CHECKING:
     ModelIndex = QModelIndex | QPersistentModelIndex
 
 ItemDataRole = Qt.ItemDataRole
-
-QML_IMPORT_NAME = "WneudModels"
-QML_IMPORT_MAJOR_VERSION = 1
-QML_IMPORT_MINOR_VERSION = 0
 
 
 @typing.final
@@ -135,24 +132,22 @@ class JournalLogModel(QAbstractListModel):
 
 
 @typing.final
-class SDUnitListModel(QAbstractListModel):
+class SDUnitsModel(QAbstractListModel):
     """A list model for systemd units."""
+
+    UnitRole = ItemDataRole.UserRole + 1
+    UnitNameRole = ItemDataRole.UserRole + 2
+    UnitTypeRole = ItemDataRole.UserRole + 3
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.systemd = SystemDService(parent)
-        self.system_units: list[Unit] = []
-        self.user_units: list[Unit] = []
+        self.units: list[Unit] = []
         self.unit_index: dict[str, Unit] = {}
 
         self.reload_units()
-
-    @property
-    def units(self):
-        # TODO: Filters for selecting other unit types?
-        return self.user_units
 
     @typing.override
     def data(self, index: ModelIndex, /, role: int):
@@ -169,8 +164,14 @@ class SDUnitListModel(QAbstractListModel):
         item = self.units[row]
         # self.logger.debug("selected row: %s", item)
 
-        if role in {ItemDataRole.DisplayRole, ItemDataRole.UserRole + 1}:
+        if role in {ItemDataRole.DisplayRole, self.UnitRole}:
             return item
+
+        if role == self.UnitNameRole:
+            return item.name
+
+        if role == self.UnitTypeRole:
+            return item.unitType.capitalize()
 
         self.logger.debug(".data() returning none")
         return None
@@ -185,32 +186,24 @@ class SDUnitListModel(QAbstractListModel):
         # self.logger.debug("roleNames called")
         roles: dict[int, QByteArray] = {
             **super().roleNames(),
-            ItemDataRole.UserRole + 1: b"item",
+            self.UnitRole: b"item",
+            self.UnitNameRole: b"name",
+            self.UnitTypeRole: b"unitType",
         }
         return roles
 
     def reload_units(self):
         """Reload list of units."""
+        self.units.clear()
         self.unit_index.clear()
-        self.user_units.clear()
-        self.system_units.clear()
 
         unit_files = self.systemd.list_unit_files()
         for path, status in unit_files:
             # self.logger.debug("UnitFile %s (%s)", path, status)
             unit = Unit.from_filepath(path, status, systemd=self.systemd)
-            self.unit_index[unit.id] = unit
 
-            # It might seem strange to talk about 'system' units since we're connected
-            # to the user systemd instance however, there are many system services
-            # running in the user instance that we probably should leave well alone.
-            #
-            # So for our purposes a 'user' unit is one that lives in .config/systemd/user
-            # as it's most likely been set up by us or the user independently
-            if ".config/systemd" in unit.fragmentPath:
-                self.user_units.append(unit)
-            else:
-                self.system_units.append(unit)
+            self.units.append(unit)
+            self.unit_index[unit.id] = unit
 
         loaded_units = self.systemd.list_units()
         for item in loaded_units:
@@ -235,20 +228,128 @@ class SDUnitListModel(QAbstractListModel):
                 continue
 
             unit.description = desc
+            unit.activeState = active_state
             unit.objectPath = obj_path
 
 
-qmlRegisterType(
-    JournalLogModel,
-    QML_IMPORT_NAME,
-    QML_IMPORT_MAJOR_VERSION,
-    QML_IMPORT_MINOR_VERSION,
-    "JournalLogModel",
-)
-qmlRegisterType(
-    SDUnitListModel,
-    QML_IMPORT_NAME,
-    QML_IMPORT_MAJOR_VERSION,
-    QML_IMPORT_MINOR_VERSION,
-    "SDUnitListModel",
-)
+class WneudTriggersModel(QSortFilterProxyModel):
+    """A filter proxy over the base SDUnitsModel that only returns units corresponding
+    to automated triggers."""
+
+    sourceModelChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    @pyqtProperty(QAbstractListModel, notify=sourceModelChanged)
+    def model(self):
+        return super().sourceModel()
+
+    @model.setter
+    def model(self, model):
+        if model != super().sourceModel():
+            self.setSourceModel(model)
+            self.sort(0)
+            self.sourceModelChanged.emit()
+
+    def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
+        """Used to determine sort order"""
+        model = self.sourceModel()
+
+        left_type = model.data(left, SDUnitsModel.UnitTypeRole)
+        right_type = model.data(right, SDUnitsModel.UnitTypeRole)
+
+        if left_type != right_type:
+            return left_type < right_type
+
+        left_name = model.data(left, SDUnitsModel.UnitNameRole) or ""
+        right_name = model.data(right, SDUnitsModel.UnitNameRole) or ""
+
+        return left_name.lower() < right_name.lower()
+
+    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
+        """Decides if a given item in the base model should be included."""
+        model = self.sourceModel()
+        index = model.index(source_row, 0, source_parent)
+
+        unit = model.data(index, SDUnitsModel.UnitRole)
+        if unit.unitType not in {"path", "timer"}:
+            return False
+
+        # if unit.fragmentPath and (".config/systemd" not in unit.fragmentPath):
+        #     return False
+
+        return True
+
+
+class WneudWorkflowsModel(QSortFilterProxyModel):
+    """A filter proxy over the base SDUnitsModel that only returns units corresponding
+    to workflows."""
+
+    sourceModelChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    @pyqtProperty(QAbstractListModel, notify=sourceModelChanged)
+    def model(self):
+        return super().sourceModel()
+
+    @model.setter
+    def model(self, model):
+        if model != super().sourceModel():
+            self.setSourceModel(model)
+            self.sort(0)
+            self.sourceModelChanged.emit()
+
+    def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
+        """Used to determine sort order"""
+        model = self.sourceModel()
+
+        left_type = model.data(left, SDUnitsModel.UnitTypeRole)
+        right_type = model.data(right, SDUnitsModel.UnitTypeRole)
+
+        if left_type != right_type:
+            return left_type < right_type
+
+        left_name = model.data(left, SDUnitsModel.UnitNameRole) or ""
+        right_name = model.data(right, SDUnitsModel.UnitNameRole) or ""
+
+        return left_name.lower() < right_name.lower()
+
+    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
+        """Decides if a given item in the base model should be included."""
+        model = self.sourceModel()
+        index = model.index(source_row, 0, source_parent)
+
+        unit = model.data(index, SDUnitsModel.UnitRole)
+        if unit.unitType not in {"service"}:
+            return False
+
+        # if unit.fragmentPath and (".config/systemd" not in unit.fragmentPath):
+        #     return False
+
+        return True
+
+
+def register_models(import_name: str, major_version: int, minor_version: int):
+    qmlRegisterType(
+        JournalLogModel, import_name, major_version, minor_version, "JournalLogModel"
+    )
+    qmlRegisterType(
+        SDUnitsModel, import_name, major_version, minor_version, "SDUnitsModel"
+    )
+    qmlRegisterType(
+        WneudTriggersModel,
+        import_name,
+        major_version,
+        minor_version,
+        "WneudTriggersModel",
+    )
+    qmlRegisterType(
+        WneudWorkflowsModel,
+        import_name,
+        major_version,
+        minor_version,
+        "WneudWorkflowsModel",
+    )

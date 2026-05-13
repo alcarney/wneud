@@ -11,16 +11,24 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtQml import QQmlApplicationEngine
 
-from .models import SDUnitListModel
+from .models import register_models
 
 if typing.TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+QML_IMPORT_NAME = "WneudModels"
+QML_IMPORT_MAJOR_VERSION = 1
+QML_IMPORT_MINOR_VERSION = 0
 
 
 def main(args: Sequence[str] | None = None):
     logging.basicConfig(
         level=logging.DEBUG, format="[%(levelname)s][%(name)s]: %(message)s"
     )
+
+    register_models(QML_IMPORT_NAME, QML_IMPORT_MAJOR_VERSION, QML_IMPORT_MINOR_VERSION)
+
     app = QGuiApplication(args or sys.argv)
     engine = QQmlApplicationEngine()
 

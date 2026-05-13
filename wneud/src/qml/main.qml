@@ -15,6 +15,21 @@ Kirigami.ApplicationWindow {
   width: minimumWidth
   height: minimumHeight
 
+
+  SDUnitsModel {
+    id: sdUnitsModel
+  }
+
+  WneudWorkflowsModel {
+    id: workflowsModel
+    model: sdUnitsModel
+  }
+
+  WneudTriggersModel {
+    id: triggersModel
+    model: sdUnitsModel
+  }
+
   pageStack.initialPage: Kirigami.Page {
 
     Controls.SwipeView {
@@ -25,10 +40,6 @@ Kirigami.ApplicationWindow {
       onCurrentIndexChanged: footer.currentIndex = currentIndex
 
       Kirigami.ScrollablePage {
-
-        SDUnitListModel {
-          id: sdUnitsModel
-        }
 
         Component {
           id: sdUnitsDelegate
@@ -89,17 +100,32 @@ Kirigami.ApplicationWindow {
 
         Kirigami.CardsListView {
           id: sdUnitsView
-          model: sdUnitsModel
+          model: workflowsModel
           delegate: sdUnitsDelegate
         }
       }
 
-      Kirigami.Page {
-        id: timersPage
-        title: "Timers"
-        Controls.Label {
-          anchors.centerIn: parent
-          text: "Current Page: Timers"
+      Kirigami.ScrollablePage {
+
+        ListView {
+          id: triggerList
+          model: triggersModel
+
+          delegate: Controls.ItemDelegate {
+            width: triggerList.width
+            height: implicitHeight
+
+            text: item.name
+
+            required property var item
+          }
+
+          section.property: "unitType"
+          section.labelPositioning: ViewSection.CurrentLabelAtStart
+          section.criteria: ViewSection.FullString
+          section.delegate: Kirigami.ListSectionHeader {
+              text: section
+          }
         }
       }
     }

@@ -55,6 +55,12 @@ class Unit(QObject):
     def activeState(self):
         return self._unit.get("ActiveState", "")
 
+    @activeState.setter
+    def activeState(self, value):
+        if self._unit.get("ActiveState", "") != value:
+            self._unit["ActiveState"] = value
+            self.propsChanged.emit()
+
     @pyqtProperty(bool, notify=propsChanged)
     def canStart(self):
         return self._unit.get("CanStart", False)
@@ -85,11 +91,13 @@ class Unit(QObject):
     def start(self):
         """Start the unit."""
         self._systemd.start_unit(self.id)
+        self.refresh()
 
     @pyqtSlot()
     def stop(self):
         """Start the unit."""
         self._systemd.stop_unit(self.id)
+        self.refresh()
 
     @pyqtSlot()
     def refresh(self):
@@ -131,6 +139,8 @@ class Unit(QObject):
 class PathUnit(Unit):
     """Path unit class."""
 
+    propsChanged = pyqtSignal()
+
     def __init__(
         self, unit: dict[str, str], parent=None, systemd: SystemDService | None = None
     ):
@@ -148,21 +158,9 @@ class PathUnit(Unit):
     def directoryMode(self):
         return self._unit.get("DirectoryMode", "")
 
-    @pyqtProperty(str, constant=True)
+    @pyqtProperty(object, notify=propsChanged)
     def pathExists(self):
-        return self._unit.get("PathExists", "")
-
-    @pyqtProperty(str, constant=True)
-    def pathExistsGlob(self):
-        return self._unit.get("PathExistsGlob", "")
-
-    @pyqtProperty(str, constant=True)
-    def pathChanged(self):
-        return self._unit.get("PathChanged", "")
-
-    @pyqtProperty(str, constant=True)
-    def pathModified(self):
-        return self._unit.get("PathModified", "")
+        return self._unit.get("Paths", [])
 
     @pyqtProperty(str, constant=True)
     def directoryNotEmpty(self):
