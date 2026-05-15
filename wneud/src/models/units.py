@@ -16,6 +16,10 @@ if typing.TYPE_CHECKING:
 class Unit(QObject):
     """Base unit class."""
 
+    DBUS_IFACES = [
+        "org.freedesktop.systemd1.Unit",
+    ]
+
     propsChanged = pyqtSignal()
 
     def __init__(
@@ -110,10 +114,11 @@ class Unit(QObject):
                 )
                 return
 
-        details = self._systemd.get_unit_properties(self.objectPath)
-        for prop, value in (details or {}).items():
-            self.logger.debug("%s: %s", prop, value)
-            self._unit[prop] = value
+        for iface in self.DBUS_IFACES:
+            properties = self._systemd.get_iface_properties(self.objectPath, iface)
+            for prop, value in (properties or {}).items():
+                # self.logger.debug("%s: %s", prop, value)
+                self._unit[prop] = value
 
         self.propsChanged.emit()
 
@@ -139,6 +144,11 @@ class Unit(QObject):
 class PathUnit(Unit):
     """Path unit class."""
 
+    DBUS_IFACES = [
+        *Unit.DBUS_IFACES,
+        "org.freedesktop.systemd1.Path",
+    ]
+
     propsChanged = pyqtSignal()
 
     def __init__(
@@ -159,7 +169,7 @@ class PathUnit(Unit):
         return self._unit.get("DirectoryMode", "")
 
     @pyqtProperty(object, notify=propsChanged)
-    def pathExists(self):
+    def paths(self):
         return self._unit.get("Paths", [])
 
     @pyqtProperty(str, constant=True)

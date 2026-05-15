@@ -121,14 +121,14 @@ class SystemDService(QObject):
         # TODO: error handling!
         return []
 
-    def get_unit_properties(self, unit_path: str):
-        """Get the set of generic unit properties."""
+    def get_iface_properties(self, object_path: str, iface_name: str):
+        """Get the set properties exposed by the given interface at the given object_path."""
         props = self._call_debus_method(
             "org.freedesktop.systemd1",
-            unit_path,
+            object_path,
             "org.freedesktop.DBus.Properties",
             "GetAll",
-            "org.freedesktop.systemd1.Unit",
+            iface_name,
         )
         if props is not None:
             return props[0]

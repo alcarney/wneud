@@ -326,8 +326,8 @@ class WneudWorkflowsModel(QSortFilterProxyModel):
         if unit.unitType not in {"service"}:
             return False
 
-        # if unit.fragmentPath and (".config/systemd" not in unit.fragmentPath):
-        #     return False
+        if unit.fragmentPath and (".config/systemd" not in unit.fragmentPath):
+            return False
 
         return True
 
