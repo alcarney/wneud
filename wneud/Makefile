@@ -1,3 +1,5 @@
+include ../.devcontainer/tools.mk
+
 FLATPAK_EXE ?= wneud
 FLATPAK_MANIFEST ?= io.github.swyddfa.Wneud.json
 FLATPAK_BUILD_DIR ?= build
@@ -5,10 +7,13 @@ FLATPAK_BUILD_DIR ?= build
 SRC_FILES = $(shell find src -type f -name '*.py' -or -name '*.qml')
 #$(info src = $(SRC_FILES))
 
-
 .PHONY: run
 run: $(FLATPAK_BUILD_DIR)/files/.ref
 	flatpak-builder  --env=QT_QPA_PLATFORM=wayland --run $(FLATPAK_BUILD_DIR) $(FLATPAK_MANIFEST) $(FLATPAK_EXE)
+
+.PHONY: test
+test: | $(UV)
+	$(UV) run pytest
 
 .PHONY: clean
 clean:
