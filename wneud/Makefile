@@ -2,7 +2,7 @@ FLATPAK_EXE ?= wneud
 FLATPAK_MANIFEST ?= io.github.swyddfa.Wneud.json
 FLATPAK_BUILD_DIR ?= build
 
-SRC_FILES = $(wildcard src/*.py) $(wildcard src/**/*.py) $(wildcard src/**/*.qml)
+SRC_FILES = $(shell find src -type f -name '*.py' -or -name '*.qml')
 #$(info src = $(SRC_FILES))
 
 
