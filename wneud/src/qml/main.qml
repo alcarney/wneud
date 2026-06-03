@@ -83,7 +83,14 @@ Kirigami.ApplicationWindow {
             Layout.columnSpan: 2
             text: "Details"
             onClicked: {
-              root.pageStack.push(Qt.resolvedUrl("UnitDetail.qml"), {
+              model.item.refresh()
+
+              const unitPages = {
+                "path": "PathDetail.qml",
+              }
+              const page = unitPages[model.item.unitType] ?? "UnitDetail.qml"
+
+              root.pageStack.push(Qt.resolvedUrl(page), {
                 unit: model.item
               })
             }

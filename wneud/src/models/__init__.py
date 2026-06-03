@@ -10,17 +10,16 @@ from PyQt6.QtCore import QSortFilterProxyModel
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtQml import qmlRegisterType
 from systemd import journal
 
 from wneud.services import SystemDService
 
 from .units import Unit
+from .units import unit_from_filepath
 
 if typing.TYPE_CHECKING:
     from PyQt6.QtCore import QByteArray
-    from PyQt6.QtCore import QObject
     from PyQt6.QtCore import QPersistentModelIndex
 
     from .sd_types import JournalRecord
@@ -200,7 +199,7 @@ class SDUnitsModel(QAbstractListModel):
         unit_files = self.systemd.list_unit_files()
         for path, status in unit_files:
             # self.logger.debug("UnitFile %s (%s)", path, status)
-            unit = Unit.from_filepath(path, status, systemd=self.systemd)
+            unit = unit_from_filepath(path, status, systemd=self.systemd)
 
             self.units.append(unit)
             self.unit_index[unit.id] = unit

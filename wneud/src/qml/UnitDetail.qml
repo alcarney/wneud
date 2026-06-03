@@ -12,10 +12,6 @@ FormCard.FormCardPage {
 
   title: unit.name
 
-  Component.onCompleted: {
-    unit.refresh()
-  }
-
   actions: [
     Kirigami.Action {
       text: "Stop"
