@@ -1,1 +1,1 @@
-include src/qml/*.qml
+include src/wneud/qml/*.qml

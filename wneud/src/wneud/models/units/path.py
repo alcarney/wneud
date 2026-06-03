@@ -7,6 +7,7 @@ from PyQt6.QtCore import QAbstractListModel
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtCore import QObject
 from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QVariant
 from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import pyqtSlot
@@ -38,19 +39,25 @@ class PathTriggerModel(QAbstractListModel):
 
         self.path_triggers: list[tuple[str, str]] = path_triggers
 
-    @typing.override
-    def data(self, index: ModelIndex, /, role: int):
+    def _index_to_row(self, index: ModelIndex) -> int | None:
         if not index.isValid():
             self.logger.debug(".data() called with invalid index: %s", index)
             return None
 
         if (row := index.row()) > len(self.path_triggers):
             self.logger.debug(
-                "row %d is greater than unit list length (%d)",
+                "row %d is greater than list length (%d)",
                 row,
                 len(self.path_triggers),
             )
             return None
+
+        return row
+
+    @typing.override
+    def data(self, index: ModelIndex, /, role: int):
+        if (row := self._index_to_row(index)) is None:
+            return
 
         item = self.path_triggers[row]
         # self.logger.debug("selected row: %s", item)
@@ -66,6 +73,18 @@ class PathTriggerModel(QAbstractListModel):
 
         self.logger.debug(".data() returning none")
         return None
+
+    @typing.override
+    def setData(self, index: ModelIndex, value: QVariant, role: int):
+        """Allow changes to be applied to the model."""
+        if (row := self._index_to_row(index)) is None:
+            return None
+
+        self.logger.debug("selected row: %s", row)
+        self.logger.debug("value: %r", value)
+        self.logger.debug("role: %r", role)
+
+        return False
 
     @typing.override
     def rowCount(self, parent: ModelIndex = QModelIndex()):
